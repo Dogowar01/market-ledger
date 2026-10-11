@@ -23,7 +23,7 @@ page = f"""<!DOCTYPE html>
 </head>
 <body>
 {body.strip()}
-<script>if('serviceWorker' in navigator){{navigator.serviceWorker.getRegistrations().then(function(rs){{rs.forEach(function(r){{r.unregister()}})}}).catch(function(){{}})}}</script>
+<script>if('serviceWorker' in navigator){{addEventListener('load',function(){{navigator.serviceWorker.register('sw.js').catch(function(){{}})}})}}</script>
 </body>
 </html>
 """

@@ -16,8 +16,8 @@ page = f"""<!DOCTYPE html>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Market Ledger">
 <link rel="manifest" href="manifest.webmanifest">
-<link rel="apple-touch-icon" href="apple-touch-icon.png">
-<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" sizes="180x180" href="touch-icon-v2.png">
+<link rel="icon" href="app-icon-192-v2.png">
 {head.strip()}
 </head>
 <body>

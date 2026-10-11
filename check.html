@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en-AU"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Market Ledger icon check</title>
+<style>body{font:16px/1.5 -apple-system,sans-serif;background:#0a0a0b;color:#f5f3ee;margin:0;padding:20px 16px}h1{font-size:20px}
+.r{border:1px solid #2b2b30;border-radius:12px;padding:12px;margin:12px 0;display:flex;gap:12px;align-items:center}
+.r img{width:72px;height:72px;border-radius:14px;background:#333;flex:none}code{font-size:13px;word-break:break-all;color:#9c9a93}
+.ok{color:#86d6a6;font-weight:600}.bad{color:#ff8f80;font-weight:600}pre{white-space:pre-wrap;font-size:12px;color:#9c9a93}</style></head>
+<body><h1>Market Ledger icon check</h1><p>Each row should show the orange market artwork and a green OK. Take a screenshot of this page.</p>
+<div id="out"></div><pre id="info"></pre>
+<script>
+var files=['icons/ml-180.png','icons/ml-192.png','icons/ml-512.png','touch-icon-v2.png','apple-touch-icon.png','manifest.webmanifest'];
+var out=document.getElementById('out');
+files.forEach(function(f){
+  var row=document.createElement('div');row.className='r';
+  var isImg=/png$/.test(f);
+  row.innerHTML=(isImg?'<img src="'+f+'?check='+Date.now()+'" alt="">':'')+'<div><div>'+f+'</div><code>checking…</code></div>';
+  out.appendChild(row);var code=row.querySelector('code');
+  fetch(f+'?check='+Date.now(),{cache:'no-store'}).then(function(r){return r.blob().then(function(b){
+    code.innerHTML='<span class="'+(r.ok?'ok':'bad')+'">'+(r.ok?'OK':'FAILED')+'</span> status '+r.status+' · '+(r.headers.get('content-type')||'no type')+' · '+b.size+' bytes';})})
+  .catch(function(e){code.innerHTML='<span class="bad">FAILED</span> '+e});
+  if(isImg){var im=row.querySelector('img');im.onload=function(){code.innerHTML+=' · image '+im.naturalWidth+'×'+im.naturalHeight};im.onerror=function(){code.innerHTML+=' · <span class="bad">image did not display</span>'}}
+});
+var links=[];document.getElementById('info').textContent='Browser: '+navigator.userAgent+'\nOffline helper active: '+!!(navigator.serviceWorker&&navigator.serviceWorker.controller)+'\nChecked: '+new Date().toString();
+</script></body></html>

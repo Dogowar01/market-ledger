@@ -1,5 +1,5 @@
 // Offline support: network first so updates arrive, cache as the fallback at a market with no signal.
-const CACHE = 'market-ledger-v1';
+const CACHE = 'market-ledger-v2';
 const FILES = ['./', 'index.html', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES))); self.skipWaiting(); });
 self.addEventListener('activate', e => {

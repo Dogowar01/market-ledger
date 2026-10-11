@@ -85,10 +85,17 @@ h2{font:600 11px/1 var(--ui);letter-spacing:.24em;text-transform:uppercase;color
 .tile .money{font-size:clamp(15px,4.4vw,21px);font-weight:600}
 .tile .n{font:600 24px/1 var(--display)}
 
-.seg{display:grid;grid-template-columns:repeat(3,1fr);background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:4px}
-.seg button{border:0;background:none;border-radius:999px;padding:9px 6px;font-size:14px;font-weight:600;color:var(--muted)}
+.seg{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:4px}
+.seg button{border:0;background:none;border-radius:999px;padding:9px 2px;font-size:13px;font-weight:600;color:var(--muted)}
 .seg button[aria-selected="true"]{background:var(--fg);color:var(--bg)}
 
+.step{display:flex;align-items:center;gap:6px;flex:none}
+.step button{width:38px;height:38px;border-radius:50%;border:1px solid var(--line);background:var(--surface);font-size:20px;line-height:1;font-weight:600;padding:0}
+.step button.plus{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.step button:disabled{opacity:.3}
+.step b{min-width:30px;text-align:center;font-family:var(--mono)}
+.step small{display:block;font:400 9px/1.4 var(--ui);letter-spacing:.16em;text-transform:uppercase;color:var(--muted)}
+.plainbtn{background:none;border:0;padding:0;text-align:left}
 .check{width:28px;height:28px;border-radius:50%;border:2px solid var(--line);flex:none;display:grid;place-items:center;font-size:15px;color:transparent}
 .packed .check{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
 .packed .t{color:var(--muted);text-decoration:line-through}
@@ -177,11 +184,12 @@ function seed(){
   next.setDate(d.getDate()+((7-d.getDay())%7||7)); last.setDate(next.getDate()-21);
   var a=uid(), b=uid()+'b';
   var kit=['Gazebo 3×3 m','Trestle table','Table mat and banner','Print browser box','Card reader','Cash float','Business cards','Certificates of authenticity','Cellophane sleeves','Folding chair'];
+  function stock(sold){return [['A3 gicl\u00e9e print',85,6,3],['A4 print',45,8,1],['Greeting card',8,30,5]].map(function(r,i){return{id:uid()+'s'+i,name:r[0],price:r[1],qty:r[2],sold:sold?r[3]:0}})}
   function pack(done){return kit.map(function(n,i){return{id:uid()+i,name:n,qty:n==='Business cards'?50:1,packed:done||i<4}})}
   return {v:1,examples:true,
     markets:[
-      {id:a,name:'Evandale Market',date:iso(next),location:'Falls Park, Evandale',takings:0,notes:'Gates open for stallholders at 7 am.',packing:pack(false)},
-      {id:b,name:'Evandale Market',date:iso(last),location:'Falls Park, Evandale',takings:340,notes:'',packing:pack(true)}],
+      {id:a,name:'Evandale Market',date:iso(next),location:'Falls Park, Evandale',takings:0,notes:'Gates open for stallholders at 7 am.',packing:pack(false),stock:stock(false)},
+      {id:b,name:'Evandale Market',date:iso(last),location:'Falls Park, Evandale',takings:0,notes:'',packing:pack(true),stock:stock(true)}],
     expenses:[
       {id:uid()+'1',marketId:a,date:today(),desc:'Stall fee',category:'Stall fee',amount:30},
       {id:uid()+'2',marketId:b,date:iso(last),desc:'Stall fee',category:'Stall fee',amount:30},
@@ -199,13 +207,16 @@ function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){toast('
 function market(id){return S.markets.filter(function(m){return m.id===id})[0]}
 function expOf(id){return S.expenses.filter(function(e){return e.marketId===id}).sort(function(a,b){return a.date<b.date?1:-1})}
 function spent(id){return sum(expOf(id),function(e){return e.amount})}
+function sales(m){return sum(m.stock||[],function(x){return (x.price||0)*(x.sold||0)})}
+function income(m){return sales(m)+(m.takings||0)}
+function known(){var o={};S.markets.slice().sort(function(a,b){return a.date<b.date?-1:1}).forEach(function(m){(m.stock||[]).forEach(function(x){o[x.name]=x.price})});return o}
 
 /* ---------- views ---------- */
 function banner(){
   return S.examples?'<div class="banner"><p>These are example entries so you can see how it works.</p><button type="button" class="btn small" data-act="clear-examples">Clear and start fresh</button></div>':'';
 }
 function marketCard(m,past){
-  var d=parse(m.date), sp=spent(m.id), net=(m.takings||0)-sp, p=m.packing||[], done=p.filter(function(x){return x.packed}).length;
+  var d=parse(m.date), sp=spent(m.id), net=income(m)-sp, p=m.packing||[], done=p.filter(function(x){return x.packed}).length;
   var side=past?signed(net)+'<div class="m">net</div>'
     :(p.length?'<span class="chip'+(done===p.length?' done':'')+'">'+done+'/'+p.length+' packed</span>':'<span class="chip">Nothing listed</span>');
   return '<button type="button" class="mk" data-act="open" data-id="'+m.id+'">'+
@@ -229,7 +240,7 @@ function expRow(e,showMarket){
    '<div class="money">'+money(e.amount)+'</div></button>';
 }
 function viewMarket(m){
-  var ex=expOf(m.id), sp=sum(ex,function(e){return e.amount}), net=(m.takings||0)-sp, p=m.packing||[], done=p.filter(function(x){return x.packed}).length;
+  var ex=expOf(m.id), sp=sum(ex,function(e){return e.amount}), net=income(m)-sp, p=m.packing||[], done=p.filter(function(x){return x.packed}).length;
   var body='';
   if(ui.seg==='expenses'){
     body='<div class="list">'+(ex.length?ex.map(function(e){return expRow(e)}).join(''):'<p class="empty">No expenses yet. Stall fee, fuel and food all go here.</p>')+'</div>'+
@@ -238,8 +249,16 @@ function viewMarket(m){
     var others=S.markets.filter(function(o){return o.id!==m.id&&(o.packing||[]).length});
     body=(p.length?'<div class="stack"><div class="row between"><span class="sub">'+done+' of '+p.length+' packed</span><button type="button" class="link" data-act="untick">Untick all</button></div><div class="progress"><i style="width:'+(done/p.length*100)+'%"></i></div></div>':'')+
      '<form class="addline" data-form="pack"><input id="pack-name" name="name" placeholder="Add an item" autocomplete="off" aria-label="Item"><input id="pack-qty" name="qty" inputmode="numeric" placeholder="Qty" aria-label="Quantity"><button class="btn primary" type="submit">Add</button></form>'+
-     '<div class="list">'+(p.length?p.map(function(x){return '<div class="item'+(x.packed?' packed':'')+'"><button type="button" class="row grow" style="background:none;border:0;padding:0;text-align:left" data-act="toggle" data-id="'+x.id+'" aria-pressed="'+!!x.packed+'"><span class="check">✓</span><span class="grow"><span class="t">'+esc(x.name)+'</span></span></button>'+(x.qty>1?'<span class="chip">×'+x.qty+'</span>':'')+'<button type="button" class="back" data-act="unpack" data-id="'+x.id+'" aria-label="Remove '+esc(x.name)+'">Remove</button></div>'}).join(''):'<p class="empty">Nothing listed yet. Add what you are taking: prints, display gear, float.</p>')+'</div>'+
+     '<div class="list">'+(p.length?p.map(function(x){return '<div class="item'+(x.packed?' packed':'')+'"><button type="button" class="row grow plainbtn" data-act="toggle" data-id="'+x.id+'" aria-pressed="'+!!x.packed+'"><span class="check">✓</span><span class="grow"><span class="t">'+esc(x.name)+'</span></span></button>'+(x.qty>1?'<span class="chip">×'+x.qty+'</span>':'')+'<button type="button" class="back" data-act="unpack" data-id="'+x.id+'" aria-label="Remove '+esc(x.name)+'">Remove</button></div>'}).join(''):'<p class="empty">Nothing listed yet. Add the gear you are taking: gazebo, table, float, bags.</p>')+'</div>'+
      (!p.length&&others.length?'<button type="button" class="btn block" data-act="copy-pack">Copy list from last market</button>':'');
+  }else if(ui.seg==='stock'){
+    var st=m.stock||[], units=sum(st,function(x){return x.qty}), nsold=sum(st,function(x){return x.sold});
+    body=(st.length?'<div class="row between"><span class="sub">Sold '+nsold+' of '+units+'</span><span class="money">'+money(sales(m))+'</span></div>':'')+
+     '<div class="list">'+(st.length?st.map(function(x){var left=(x.qty||0)-(x.sold||0);
+       return '<div class="item"><button type="button" class="grow plainbtn" data-act="stock-form" data-id="'+x.id+'"><div class="t">'+esc(x.name)+'</div><div class="m"><span class="money">'+money(x.price)+'</span> \u00b7 took '+(x.qty||0)+' \u00b7 '+(left>0?left+' left':'sold out')+'</div></button>'+
+        '<div class="step"><button type="button" data-act="sold" data-id="'+x.id+'" data-by="-1" aria-label="One fewer sold"'+(x.sold>0?'':' disabled')+'>\u2212</button><b>'+(x.sold||0)+'<small>sold</small></b><button type="button" class="plus" data-act="sold" data-id="'+x.id+'" data-by="1" aria-label="One more sold"'+(left>0?'':' disabled')+'>+</button></div></div>'}).join(''):'<p class="empty">No products listed yet. Add what you are taking to sell, with its price, then tap + each time one sells.</p>')+'</div>'+
+     '<button type="button" class="btn block" data-act="stock-form">Add product</button>'+
+     (!st.length&&S.markets.some(function(o){return o.id!==m.id&&(o.stock||[]).length})?'<button type="button" class="btn block" data-act="copy-stock">Copy products from last market</button>':'');
   }else{
     body='<label for="notes">Notes for this market<textarea id="notes" data-notes placeholder="Pitch number, setup time, what sold, who to follow up.">'+esc(m.notes||'')+'</textarea></label>';
   }
@@ -247,9 +266,9 @@ function viewMarket(m){
   return '<div class="row between"><button type="button" class="back" data-act="tab" data-tab="markets">← All markets</button><button type="button" class="btn small" data-act="market-form" data-id="'+m.id+'">Edit</button></div>'+
    '<div><h1>'+esc(m.name)+'</h1><p class="sub">'+fmtDate(m.date)+(m.location?' · '+esc(m.location):'')+'</p></div>'+
    '<div class="tiles"><div class="tile"><small>Spent</small><span class="money">'+money(sp)+'</span></div>'+
-   '<button type="button" class="tile" data-act="market-form" data-id="'+m.id+'" data-focus="takings"><small>Takings</small><span class="money">'+money(m.takings)+'</span></button>'+
+   '<button type="button" class="tile" data-act="seg" data-seg="stock"><small>Takings</small><span class="money">'+money(income(m))+'</span></button>'+
    '<div class="tile"><small>Net</small>'+signed(net)+'</div></div>'+
-   '<div class="seg" role="tablist">'+seg('expenses','Expenses')+seg('packing','Taking')+seg('notes','Notes')+'</div>'+body;
+   '<div class="seg" role="tablist">'+seg('stock','Stock')+seg('packing','Packing')+seg('expenses','Expenses')+seg('notes','Notes')+'</div>'+body;
 }
 function viewPurchases(){
   var g=S.expenses.filter(function(e){return !e.marketId}).sort(function(a,b){return a.date<b.date?1:-1});
@@ -266,13 +285,17 @@ function viewTotals(){
   var inFy=function(d){return ui.fy==='all'||fyOf(d)===+ui.fy};
   var t=today(), ms=S.markets.filter(function(m){return inFy(m.date)}).sort(function(a,b){return a.date<b.date?1:-1});
   var ex=S.expenses.filter(function(e){return inFy(e.date)});
-  var total=sum(ex,function(e){return e.amount}), takings=sum(ms,function(m){return m.takings}), net=takings-total;
+  var total=sum(ex,function(e){return e.amount}), takings=sum(ms,function(m){return income(m)}), net=takings-total;
   var attended=ms.filter(function(m){return m.date<t}).length;
   var cats=CATS.map(function(c){return{c:c,v:sum(ex.filter(function(e){return e.category===c}),function(e){return e.amount})}}).filter(function(x){return x.v>0}).sort(function(a,b){return b.v-a.v});
   var max=cats.length?cats[0].v:1;
+  var prod={};ms.forEach(function(m){(m.stock||[]).forEach(function(x){if(!x.sold)return;prod[x.name]=prod[x.name]||{n:x.name,u:0,v:0};prod[x.name].u+=x.sold;prod[x.name].v+=x.sold*(x.price||0)})});
+  var sold=Object.keys(prod).map(function(k){return prod[k]}).sort(function(a,b){return b.v-a.v});
+  var other=sum(ms,function(m){return m.takings});if(other>0)sold.push({n:'Other takings',u:0,v:other});
+  var smax=sold.reduce(function(t,x){return Math.max(t,x.v)},1);
   var general=sum(ex.filter(function(e){return !e.marketId}),function(e){return e.amount});
   var rows=ms.map(function(m){var s=sum(ex.filter(function(e){return e.marketId===m.id}),function(e){return e.amount});
-    return '<tr><td>'+esc(m.name)+'<div class="m sub">'+shortDate(m.date)+'</div></td><td class="money">'+money(s)+'</td><td class="money">'+money(m.takings)+'</td><td>'+signed((m.takings||0)-s)+'</td></tr>'}).join('');
+    return '<tr><td>'+esc(m.name)+'<div class="m sub">'+shortDate(m.date)+'</div></td><td class="money">'+money(s)+'</td><td class="money">'+money(income(m))+'</td><td>'+signed(income(m)-s)+'</td></tr>'}).join('');
   return banner()+
    '<div class="row between"><h1>Totals</h1><select id="fy" data-fy aria-label="Period" style="width:auto"><option value="all">All time</option>'+ys.map(function(y){return '<option value="'+y+'"'+(String(ui.fy)===String(y)?' selected':'')+'>'+fyLabel(y)+'</option>'}).join('')+'</select></div>'+
    '<div class="tiles four"><div class="tile"><small>Markets</small><span class="n">'+attended+'</span> <span class="sub">'+(ms.length-attended?'+ '+(ms.length-attended)+' booked':'attended')+'</span></div>'+
@@ -280,11 +303,12 @@ function viewTotals(){
    '<div class="tile"><small>Takings</small><span class="money">'+money(takings)+'</span></div>'+
    '<div class="tile"><small>Net</small>'+signed(net)+'</div></div>'+
    '<section class="stack"><h2>Where the money went</h2>'+(cats.length?'<div class="bars">'+cats.map(function(x){return '<div class="bar"><div class="row between"><span>'+esc(x.c)+'</span><span class="money">'+money(x.v)+'</span></div><div class="progress"><i style="width:'+Math.max(2,x.v/max*100)+'%"></i></div></div>'}).join('')+'</div>':'<p class="empty">Nothing spent in this period.</p>')+'</section>'+
+   '<section class="stack"><h2>What sold</h2>'+(sold.length?'<div class="bars">'+sold.map(function(x){return '<div class="bar"><div class="row between"><span>'+esc(x.n)+(x.u?' <span class="chip">\u00d7'+x.u+'</span>':'')+'</span><span class="money">'+money(x.v)+'</span></div><div class="progress"><i style="width:'+Math.max(2,x.v/smax*100)+'%"></i></div></div>'}).join('')+'</div>':'<p class="empty">No sales recorded in this period.</p>')+'</section>'+
    '<section class="stack"><h2>Market by market</h2><div class="tablewrap"><table><thead><tr><th>Market</th><th>Spent</th><th>Takings</th><th>Net</th></tr></thead><tbody>'+rows+
    '<tr><td>General purchases</td><td class="money">'+money(general)+'</td><td class="money">—</td><td>'+signed(-general)+'</td></tr></tbody>'+
    '<tfoot><tr><td>Total</td><td class="money">'+money(total)+'</td><td class="money">'+money(takings)+'</td><td>'+signed(net)+'</td></tr></tfoot></table></div></section>'+
    '<section class="stack"><h2>Your data</h2><p class="sub">Everything is stored on this device only. Save a backup now and then, and use it to move to another phone or computer.</p>'+
-   '<div class="row" style="flex-wrap:wrap"><button type="button" class="btn small" data-act="export" data-kind="json">Back up</button><button type="button" class="btn small" data-act="export" data-kind="csv">Expenses as CSV</button><button type="button" class="btn small" data-act="import">Restore backup</button></div></section>';
+   '<div class="row" style="flex-wrap:wrap"><button type="button" class="btn small" data-act="export" data-kind="json">Back up</button><button type="button" class="btn small" data-act="export" data-kind="csv">Expenses as CSV</button><button type="button" class="btn small" data-act="export" data-kind="sales">Sales as CSV</button><button type="button" class="btn small" data-act="import">Restore backup</button></div></section>';
 }
 function render(){
   var m=ui.marketId&&market(ui.marketId);
@@ -297,14 +321,14 @@ function render(){
 function openSheet(html,focus){sheet.innerHTML=html;scrim.hidden=false;sheet.scrollTop=0;var f=focus&&sheet.querySelector(focus);if(f)setTimeout(function(){f.focus()},60)}
 function closeSheet(){scrim.hidden=true;sheet.innerHTML=''}
 function marketForm(id,focus){
-  var m=id?market(id):null, hasPrev=!m&&S.markets.some(function(o){return (o.packing||[]).length});
+  var m=id?market(id):null, hasPrev=!m&&S.markets.some(function(o){return (o.packing||[]).length||(o.stock||[]).length});
   openSheet('<form class="stack" data-form="market" data-id="'+(id||'')+'"><h3>'+(m?'Edit market':'Add a market')+'</h3>'+
    '<label for="m-name">Market name<input id="m-name" name="name" required value="'+esc(m?m.name:'')+'" placeholder="Evandale Market"></label>'+
    '<div class="two"><label for="m-date">Date<input id="m-date" name="date" type="date" required value="'+esc(m?m.date:today())+'"></label>'+
-   '<label for="m-takings">Takings ($)<input id="m-takings" name="takings" inputmode="decimal" value="'+(m&&m.takings?m.takings:'')+'" placeholder="0.00"></label></div>'+
+   '<label for="m-takings">Other takings ($)<input id="m-takings" name="takings" inputmode="decimal" value="'+(m&&m.takings?m.takings:'')+'" placeholder="Not in Stock"></label></div>'+
    '<label for="m-loc">Location<input id="m-loc" name="location" value="'+esc(m?m.location:'')+'" placeholder="Falls Park, Evandale"></label>'+
    (m?'':'<label for="m-fee">Stall fee ($)<input id="m-fee" name="fee" inputmode="decimal" placeholder="Leave blank if none"></label>')+
-   (hasPrev?'<label class="inline" for="m-copy"><input id="m-copy" name="copy" type="checkbox" checked>Start with the packing list from my last market</label>':'')+
+   (hasPrev?'<label class="inline" for="m-copy"><input id="m-copy" name="copy" type="checkbox" checked>Start with the packing list and products from my last market</label>':'')+
    '<div class="actions"><button class="btn primary" type="submit">'+(m?'Save':'Add market')+'</button><button type="button" class="btn ghost" data-act="close">Cancel</button>'+
    (m?'<button type="button" class="btn ghost danger" data-act="delete-market" data-id="'+m.id+'">Delete</button>':'')+'</div></form>',focus==='takings'?'#m-takings':(m?null:'#m-name'));
 }
@@ -322,16 +346,35 @@ function expenseForm(id,marketId){
    '<div class="actions"><button class="btn primary" type="submit">'+(e?'Save':'Add')+'</button><button type="button" class="btn ghost" data-act="close">Cancel</button>'+
    (e?'<button type="button" class="btn ghost danger" data-act="delete-expense" data-id="'+e.id+'">Delete</button>':'')+'</div></form>',e?null:'#e-desc');
 }
+function stockForm(id){
+  var m=market(ui.marketId);if(!m)return;
+  var x=id?(m.stock||[]).filter(function(y){return y.id===id})[0]:null, k=known();
+  openSheet('<form class="stack" data-form="stock" data-id="'+(id||'')+'"><h3>'+(x?'Edit product':'Add a product')+'</h3>'+
+   '<label for="s-name">Product<input id="s-name" name="name" required list="s-known" autocomplete="off" value="'+esc(x?x.name:'')+'" placeholder="A3 gicl\u00e9e print"></label>'+
+   '<datalist id="s-known">'+Object.keys(k).map(function(n){return '<option value="'+esc(n)+'"></option>'}).join('')+'</datalist>'+
+   '<div class="two"><label for="s-price">Price each ($)<input id="s-price" name="price" inputmode="decimal" required value="'+(x?x.price:'')+'" placeholder="0.00"></label>'+
+   '<label for="s-qty">How many taking<input id="s-qty" name="qty" inputmode="numeric" required value="'+(x?x.qty:'')+'" placeholder="1"></label></div>'+
+   (x?'<label for="s-sold">Sold<input id="s-sold" name="sold" inputmode="numeric" value="'+(x.sold||0)+'"></label>':'')+
+   '<div class="actions"><button class="btn primary" type="submit">'+(x?'Save':'Add product')+'</button><button type="button" class="btn ghost" data-act="close">Cancel</button>'+
+   (x?'<button type="button" class="btn ghost danger" data-act="delete-stock" data-id="'+x.id+'">Delete</button>':'')+'</div></form>',x?null:'#s-name');
+}
+function salesCsv(){
+  var q=function(v){return '"'+String(v==null?'':v).replace(/"/g,'""')+'"'}, rows=['Date,Market,Product,Price,Taken,Sold,Revenue'];
+  S.markets.slice().sort(function(a,b){return a.date<b.date?-1:1}).forEach(function(m){
+    (m.stock||[]).forEach(function(x){rows.push([m.date,q(m.name),q(x.name),(x.price||0).toFixed(2),x.qty||0,x.sold||0,((x.price||0)*(x.sold||0)).toFixed(2)].join(','))});
+    if(m.takings)rows.push([m.date,q(m.name),q('Other takings'),'','','',(m.takings).toFixed(2)].join(','))});
+  return rows.join('\n');
+}
 function csv(){
   var q=function(v){return '"'+String(v==null?'':v).replace(/"/g,'""')+'"'};
   return ['Date,Market,Category,Description,Amount'].concat(S.expenses.slice().sort(function(a,b){return a.date<b.date?-1:1}).map(function(e){
     var m=e.marketId&&market(e.marketId);return [e.date,q(m?m.name+' '+m.date:'General'),q(e.category),q(e.desc),(e.amount||0).toFixed(2)].join(',')})).join('\n');
 }
 function exportSheet(kind){
-  var text=kind==='csv'?csv():JSON.stringify(S,null,1), name='signal9-market-ledger-'+today()+(kind==='csv'?'.csv':'.json');
-  openSheet('<div class="stack"><h3>'+(kind==='csv'?'Expenses as CSV':'Back up')+'</h3><p class="sub">Download the file, or copy the text and paste it somewhere safe.</p>'+
+  var text=kind==='csv'?csv():kind==='sales'?salesCsv():JSON.stringify(S,null,1), name='signal9-market-'+(kind==='sales'?'sales':kind==='csv'?'expenses':'ledger')+'-'+today()+(kind==='json'?'.json':'.csv');
+  openSheet('<div class="stack"><h3>'+(kind==='csv'?'Expenses as CSV':kind==='sales'?'Sales as CSV':'Back up')+'</h3><p class="sub">Download the file, or copy the text and paste it somewhere safe.</p>'+
    '<textarea id="export-text" readonly aria-label="Export">'+esc(text)+'</textarea>'+
-   '<div class="actions"><button type="button" class="btn primary" data-act="download" data-name="'+name+'" data-mime="'+(kind==='csv'?'text/csv':'application/json')+'">Download file</button><button type="button" class="btn" data-act="copy">Copy</button><button type="button" class="btn ghost" data-act="close">Done</button></div></div>');
+   '<div class="actions"><button type="button" class="btn primary" data-act="download" data-name="'+name+'" data-mime="'+(kind==='json'?'application/json':'text/csv')+'">Download file</button><button type="button" class="btn" data-act="copy">Copy</button><button type="button" class="btn ghost" data-act="close">Done</button></div></div>');
 }
 function importSheet(){
   openSheet('<form class="stack" data-form="import"><h3>Restore backup</h3><p class="sub">This replaces everything in the ledger on this device with the backup.</p>'+
@@ -354,7 +397,7 @@ document.addEventListener('click',function(ev){
   var b=ev.target.closest('[data-act]');if(!b)return;
   var a=b.dataset.act, d=b.dataset, m=ui.marketId&&market(ui.marketId);
   if(a==='tab'){ui.tab=d.tab;ui.marketId=null;render();window.scrollTo(0,0)}
-  else if(a==='open'){ui.marketId=d.id;ui.seg=market(d.id).date>=today()?'packing':'expenses';render();window.scrollTo(0,0)}
+  else if(a==='open'){ui.marketId=d.id;var od=market(d.id).date;ui.seg=od>today()?'packing':od===today()?'stock':'expenses';render();window.scrollTo(0,0)}
   else if(a==='seg'){ui.seg=d.seg;render()}
   else if(a==='market-form')marketForm(d.id,d.focus);
   else if(a==='expense-form')expenseForm(d.id,d.market);
@@ -364,6 +407,10 @@ document.addEventListener('click',function(ev){
   else if(a==='unpack'&&m){m.packing=m.packing.filter(function(x){return x.id!==d.id});save();render()}
   else if(a==='untick'&&m){m.packing.forEach(function(x){x.packed=false});save();render()}
   else if(a==='copy-pack'&&m){m.packing=lastPacking(m.id);save();render();toast('List copied')}
+  else if(a==='stock-form')stockForm(d.id);
+  else if(a==='sold'&&m){(m.stock||[]).forEach(function(x){if(x.id===d.id)x.sold=Math.max(0,Math.min(x.qty||0,(x.sold||0)+(+d.by)))});save();render()}
+  else if(a==='copy-stock'&&m){m.stock=lastStock(m.id);save();render();toast('Products copied')}
+  else if(a==='delete-stock'&&m)confirmTwice(b,function(){m.stock=(m.stock||[]).filter(function(x){return x.id!==d.id});save();closeSheet();render();toast('Deleted')});
   else if(a==='delete-market')confirmTwice(b,function(){S.markets=S.markets.filter(function(x){return x.id!==d.id});S.expenses=S.expenses.filter(function(x){return x.marketId!==d.id});save();closeSheet();ui.marketId=null;render();toast('Market deleted')});
   else if(a==='delete-expense')confirmTwice(b,function(){S.expenses=S.expenses.filter(function(x){return x.id!==d.id});save();closeSheet();render();toast('Deleted')});
   else if(a==='export')exportSheet(d.kind);
@@ -376,13 +423,17 @@ function lastPacking(exceptId){
   var src=S.markets.filter(function(o){return o.id!==exceptId&&(o.packing||[]).length}).sort(function(a,b){return a.date<b.date?1:-1})[0];
   return src?src.packing.map(function(x,i){return{id:uid()+i,name:x.name,qty:x.qty,packed:false}}):[];
 }
+function lastStock(exceptId){
+  var src=S.markets.filter(function(o){return o.id!==exceptId&&(o.stock||[]).length}).sort(function(a,b){return a.date<b.date?1:-1})[0];
+  return src?src.stock.map(function(x,i){return{id:uid()+'s'+i,name:x.name,price:x.price,qty:x.qty,sold:0}}):[];
+}
 document.addEventListener('submit',function(ev){
   var f=ev.target, kind=f.dataset.form;if(!kind)return;ev.preventDefault();
   var v={};new FormData(f).forEach(function(val,k){v[k]=typeof val==='string'?val.trim():val});
   if(kind==='market'){
     var m=f.dataset.id&&market(f.dataset.id);
     if(m){m.name=v.name;m.date=v.date;m.location=v.location;m.takings=num(v.takings)}
-    else{m={id:uid(),name:v.name,date:v.date,location:v.location,takings:num(v.takings),notes:'',packing:v.copy?lastPacking(null):[]};S.markets.push(m);
+    else{m={id:uid(),name:v.name,date:v.date,location:v.location,takings:num(v.takings),notes:'',packing:v.copy?lastPacking(null):[],stock:v.copy?lastStock(null):[]};S.markets.push(m);
       if(num(v.fee)>0)S.expenses.push({id:uid()+'f',marketId:m.id,date:today(),desc:'Stall fee',category:'Stall fee',amount:num(v.fee)});
       ui.tab='markets';ui.marketId=m.id;ui.seg='packing'}
     save();closeSheet();render();toast(f.dataset.id?'Saved':'Market added');
@@ -395,6 +446,12 @@ document.addEventListener('submit',function(ev){
     var mk=market(ui.marketId);if(!mk||!v.name)return;
     mk.packing=mk.packing||[];mk.packing.push({id:uid(),name:v.name,qty:Math.max(1,parseInt(v.qty,10)||1),packed:false});
     save();render();var n=$('#pack-name');if(n)n.focus();
+  }else if(kind==='stock'){
+    var ms=market(ui.marketId);if(!ms)return;ms.stock=ms.stock||[];
+    var x=f.dataset.id&&ms.stock.filter(function(y){return y.id===f.dataset.id})[0];
+    var qn=Math.max(0,parseInt(v.qty,10)||0), r2={name:v.name,price:num(v.price),qty:qn,sold:Math.max(0,Math.min(qn,parseInt(v.sold,10)||0))};
+    if(x)Object.assign(x,r2);else{r2.id=uid();ms.stock.push(r2)}
+    save();closeSheet();render();toast(x?'Saved':'Product added');
   }else if(kind==='import'){
     var file=$('#imp-file').files[0];
     if(file){var r=new FileReader();r.onload=function(){restore(r.result)};r.readAsText(file)}
@@ -402,6 +459,7 @@ document.addEventListener('submit',function(ev){
   }
 });
 document.addEventListener('input',function(ev){
+  if(ev.target.id==='s-name'){var kp=known()[ev.target.value],pi=$('#s-price');if(kp!=null&&pi&&!pi.value)pi.value=kp}
   if(ev.target.matches('[data-notes]')){var m=market(ui.marketId);if(m){m.notes=ev.target.value;save()}}
 });
 document.addEventListener('change',function(ev){if(ev.target.matches('[data-fy]')){ui.fy=ev.target.value;render()}});

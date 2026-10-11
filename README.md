@@ -2,7 +2,7 @@
 
 A small offline-first PWA for Signal9 Studio market days.
 
-- **Markets** – each market is its own event with expenses, takings, a packing list and notes.
+- **Markets** – each market is its own event with stock (products, prices, what sold), a packing list, expenses and notes.
 - **Purchases** – things bought that are not tied to one market (display gear, stock, packaging).
 - **Totals** – spend, takings and net across everything, by category and market by market, filterable by Australian financial year.
 

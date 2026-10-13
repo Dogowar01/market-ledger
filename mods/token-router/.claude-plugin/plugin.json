@@ -1,0 +1,6 @@
+{
+  "name": "token-router",
+  "version": "0.1.0",
+  "description": "Shows the tokens each prompt used and routes each prompt to Haiku, Sonnet or Opus by its complexity",
+  "types": "./types/index.d.ts"
+}
